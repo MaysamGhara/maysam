@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hogwarts Escape Room - Module E</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+        body {
+            background-color: #0b0d17;
+            color: #e0e0e0;
+            font-family: 'Cairo', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1506354666786-959d6d497f1a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
+            background-size: cover;
+            background-attachment: fixed;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background: rgba(26, 26, 26, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(116, 0, 1, 0.5);
+            border: 2px solid #740001;
+            text-align: center;
+        }
+
+        h1 { color: #ffd700; text-shadow: 3px 3px #ae0001; font-size: 2.5em; }
+        
+        .house-container { display: flex; justify-content: space-around; margin: 20px 0; flex-wrap: wrap; }
+        .house-option { cursor: pointer; transition: 0.3s; width: 120px; text-align: center; border: 2px solid transparent; border-radius: 10px; padding: 5px; }
+        .house-option img { width: 80px; height: 100px; object-fit: contain; }
+        .house-option:hover, .selected-house { transform: scale(1.1); border-color: #ffd700; background: rgba(255, 215, 0, 0.1); }
+        
+        .timer { font-size: 2em; color: #ff4500; font-weight: bold; margin: 20px 0; font-family: monospace; }
+        
+        input[type="text"] {
+            width: 80%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ffd700;
+            background: #222; color: white; font-size: 1.1em;
+        }
+
+        button {
+            background: #740001; color: #ffd700; border: 2px solid #ffd700;
+            padding: 15px 40px; font-size: 1.2em; font-weight: bold; cursor: pointer;
+            border-radius: 10px; transition: 0.3s; margin-top: 20px;
+        }
+
+        button:hover { background: #ae0001; box-shadow: 0 0 15px #ffd700; }
+
+        .stage-box { background: #2c3e50; padding: 20px; border-radius: 15px; margin: 20px 0; text-align: right; line-height: 1.8; }
+        .hidden { display: none; }
+        
+        .locked-img { width: 50px; margin-bottom: 10px; }
+        
+        .status-bar { display: flex; justify-content: space-between; margin-bottom: 20px; color: #ffd700; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="intro-screen">
+    <h1>🔮 معركة هوجوورتس الأخيرة</h1>
+    <p style="font-size: 1.2em;">فولديمورت يقترب! عليكم فك رموز التعاويذ اللغوية (Module E) للهروب وتدمير الهوركروكس.</p>
+    
+    <input type="text" id="teamName" placeholder="أدخل اسم المجموعة المغامرة...">
+    
+    <h3>اختر بيت هوجوورتس الخاص بكم:</h3>
+    <div class="house-container">
+        <div class="house-option" onclick="selectHouse('Gryffindor', this)">
+            <img src="https://m.media-amazon.com/images/I/71u9B6v5rHL._AC_SL1500_.jpg" alt="Gryffindor">
+            <p>جريفندور</p>
+        </div>
+        <div class="house-option" onclick="selectHouse('Slytherin', this)">
+            <img src="https://m.media-amazon.com/images/I/71I9-U7+A4L._AC_SL1500_.jpg" alt="Slytherin">
+            <p>سليذرين</p>
+        </div>
+        <div class="house-option" onclick="selectHouse('Ravenclaw', this)">
+            <img src="https://m.media-amazon.com/images/I/71o0W1G6pTL._AC_SL1500_.jpg" alt="Ravenclaw">
+            <p>رافنكلو</p>
+        </div>
+        <div class="house-option" onclick="selectHouse('Hufflepuff', this)">
+            <img src="https://m.media-amazon.com/images/I/71V2M9vA8WL._AC_SL1500_.jpg" alt="Hufflepuff">
+            <p>هافلباف</p>
+        </div>
+    </div>
+
+    <button onclick="startGame()">دخول الغرفة المحرمة (45 دقيقة)</button>
+</div>
+
+<div class="container hidden" id="game-screen">
+    <div class="status-bar">
+        <span id="display-team">المجموعة: </span>
+        <span id="display-house">البيت: </span>
+    </div>
+    
+    <div class="timer" id="timer">45:00</div>
+    
+    <div id="stage-area">
+        <img src="https://cdn-icons-png.flaticon.com/512/2889/2889676.png" class="locked-img">
+        <h2 id="stage-title" style="color: #ffd700;"></h2>
+        <div class="stage-box" id="stage-desc"></div>
+    </div>
+
+    <input type="text" id="code-input" placeholder="أدخل كود فك القفل هنا...">
+    <br>
+    <button onclick="verifyCode()">تحقق من التعويذة ⚡</button>
+</div>
+
+<script>
+    let timer;
+    let timeLeft = 45 * 60;
+    let currentStage = 1;
+    let selectedHouseName = "";
+
+    const stages = [
+        {
+            title: "المرحلة 1: زنزانة الألغاز (List A)",
+            desc: "جد المعاني بالعربية للكلمات التالية ثم استخرج الكود (عدد حروف معنى كلمة Addition + عدد حروف معنى كلمة Past): <br> 1. Addition <br> 2. Advance <br> 3. Average <br> 4. Common <br> 5. Doubt <br> 6. Event <br> 7. Fresh <br> 8. Image <br> 9. Low <br> 10. Past",
+            code: "53"
+        },
+        {
+            title: "المرحلة 2: مكتبة الأسرار (List B)",
+            desc: "جد المرادف (Synonym) لكل كلمة، الكود هو مجموع عدد الكلمات في إجابات الأسئلة رقم 2 و 6 و 7: <br> 1. Account <br> 2. Brilliant (Very intelligent) <br> 3. Decade <br> 4. Degree <br> 5. Element <br> 6. Final (Last) <br> 7. Genuine (Real) <br> 8. Hidden <br> 9. Issue <br> 10. Mend",
+            code: "4"
+        },
+        {
+            title: "المرحلة 3: الغابة المحرمة (Context)",
+            desc: "أكمل الجمل بالكلمة المناسبة. الكود هو (أرقام الأسئلة التي تبدأ إجابتها بحرف P): <br> 1. The project is <b>complex</b>. <br> 2. Water is <b>essential</b>. <br> 3. He is <b>responsible</b>. <br> 4. The <b>consequences</b> were bad. <br> 5. We must <b>focus</b>. <br> 6. <b>Pollution</b> is high. <br> 7. High <b>intelligence</b>. <br> 8. A <b>private</b> room. <br> 9. <b>Deliberate</b> choice. <br> 10. Growing <b>population</b>.",
+            code: "68"
+        },
+        {
+            title: "المرحلة 4: المواجهة النهائية (Chunks)",
+            desc: "فُك تشفير التعابير التالية للوصول لاسم الساحر العظيم (كلمة السر هي لقب مدير المدرسة): <br> 1. All of a sudden <br> 2. Be in charge <br> 3. Get rid of <br> 4. Look forward to <br> 5. Make sense <br> 6. On the whole <br> 7. In terms of <br> 8. In the meantime <br> 9. More or less <br> 10. Point of view",
+            code: "Dumbledore"
+        }
+    ];
+
+    function selectHouse(house, element) {
+        document.querySelectorAll('.house-option').forEach(el => el.classList.remove('selected-house'));
+        element.classList.add('selected-house');
+        selectedHouseName = house;
+    }
+
+    function startGame() {
+        const team = document.getElementById('teamName').value;
+        if (!team || !selectedHouseName) {
+            alert("من فضلك أدخل اسم المجموعة واختر البيت أولاً!");
+            return;
+        }
+
+        document.getElementById('display-team').innerText += team;
+        document.getElementById('display-house').innerText += selectedHouseName;
+        document.getElementById('intro-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+
+        loadStage();
+        startTimer();
+    }
+
+    function startTimer() {
+        timer = setInterval(() => {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            document.getElementById('timer').innerText = 
+                `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                alert("انتهى الوقت! لقد أمسك بكم فولديمورت.. حاولوا مرة أخرى.");
+                location.reload();
+            }
+            timeLeft--;
+        }, 1000);
+    }
+
+    function loadStage() {
+        document.getElementById('stage-title').innerText = stages[currentStage-1].title;
+        document.getElementById('stage-desc').innerHTML = stages[currentStage-1].desc;
+        document.getElementById('code-input').value = "";
+    }
+
+    function verifyCode() {
+        const input = document.getElementById('code-input').value.trim();
+        if (input.toLowerCase() === stages[currentStage-1].code.toLowerCase()) {
+            if (currentStage < stages.length) {
+                alert("تم فك التشفير بنجاح! انتقل للمرحلة التالية.");
+                currentStage++;
+                loadStage();
+            } else {
+                clearInterval(timer);
+                alert("تهانينا! لقد دمرتم فولديمورت وأنقذتم المدرسة بالتعويذة النهائية!");
+                document.body.innerHTML = "<div class='container'><h1>🏆 انتصار عظيم!</h1><p>لقد نجحتم في الهروب في الوقت المحدد.</p><button onclick='location.reload()'>لعب مرة أخرى</button></div>";
+            }
+        } else {
+            alert("كود خاطئ! فكر جيداً في معاني الكلمات.");
+        }
+    }
+</script>
+
+</body>
+</html>
